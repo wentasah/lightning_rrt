@@ -24,16 +24,28 @@ private:
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "'%f'", msg->pose.position.x);
   }
 
-  rclcpp::Service<Empty>::SharedPtr server_ =
+  void map_cb(nav_msgs::msg::OccupancyGrid::SharedPtr msg)
+  {
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Map received: '%d' x '%d'",
+                msg->info.width, msg->info.height);
+  }
+
+  rclcpp::Service<Empty>::SharedPtr rrt_service_ =
       create_service<Empty>(
           "rrt",
           std::bind(&LightningRRT::rrt_cb, this, _1, _2));
 
-  rclcpp::Subscription<PoseStamped>::SharedPtr subscription_ =
+  rclcpp::Subscription<PoseStamped>::SharedPtr start_sub_ =
       create_subscription<PoseStamped>(
           "start",
           10,
           std::bind(&LightningRRT::start_cb, this, _1));
+
+  rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_ =
+      create_subscription<nav_msgs::msg::OccupancyGrid>(
+          "map",
+          10,
+          std::bind(&LightningRRT::map_cb, this, _1));
 };
 
 int main(int argc, char *argv[])
