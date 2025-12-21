@@ -40,7 +40,7 @@ private:
     start_marker_.color.r = 0.0;
     start_marker_.color.g = 1.0;
     start_marker_.color.b = 0.0;
-    marker_pub_->publish(start_marker_);
+    start_marker_pub_->publish(start_marker_);
   }
 
   void goal_cb(PoseStamped::SharedPtr msg)
@@ -59,7 +59,7 @@ private:
     goal_marker_.color.r = 1.0;
     goal_marker_.color.g = 0.0;
     goal_marker_.color.b = 0.0;
-    marker_pub_->publish(goal_marker_);
+    goal_marker_pub_->publish(goal_marker_);
   }
 
   void map_cb(OccupancyGrid::SharedPtr msg)
@@ -99,8 +99,11 @@ private:
   rclcpp::Publisher<Path>::SharedPtr path_pub_ =
       create_publisher<Path>("path", 10);
 
-  rclcpp::Publisher<Marker>::SharedPtr marker_pub_ =
-      create_publisher<Marker>("marker", 10);
+  rclcpp::Publisher<Marker>::SharedPtr start_marker_pub_ =
+      create_publisher<Marker>("start_marker", 10);
+
+  rclcpp::Publisher<Marker>::SharedPtr goal_marker_pub_ =
+      create_publisher<Marker>("goal_marker", 10);
 
   rclcpp::TimerBase::SharedPtr timer_ =
       create_wall_timer(
