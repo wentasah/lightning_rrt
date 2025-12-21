@@ -2,8 +2,11 @@
 #include "std_srvs/srv/empty.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
+#include "nav_msgs/msg/path.hpp"
 
 using geometry_msgs::msg::PoseStamped;
+using nav_msgs::msg::OccupancyGrid;
+using nav_msgs::msg::Path;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using std_srvs::srv::Empty;
@@ -24,10 +27,15 @@ private:
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "'%f'", msg->pose.position.x);
   }
 
-  void map_cb(nav_msgs::msg::OccupancyGrid::SharedPtr msg)
+  void map_cb(OccupancyGrid::SharedPtr msg)
   {
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Map received: '%d' x '%d'",
                 msg->info.width, msg->info.height);
+  }
+
+  void timer_cb()
+  {
+    this->path_pub_->publish(Path());
   }
 
   rclcpp::Service<Empty>::SharedPtr rrt_service_ =
@@ -41,11 +49,19 @@ private:
           10,
           std::bind(&LightningRRT::start_cb, this, _1));
 
-  rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_ =
-      create_subscription<nav_msgs::msg::OccupancyGrid>(
+  rclcpp::Subscription<OccupancyGrid>::SharedPtr map_sub_ =
+      create_subscription<OccupancyGrid>(
           "map",
           10,
           std::bind(&LightningRRT::map_cb, this, _1));
+
+  rclcpp::Publisher<Path>::SharedPtr path_pub_ =
+      create_publisher<Path>("path", 10);
+
+  rclcpp::TimerBase::SharedPtr timer_ =
+      create_wall_timer(
+          std::chrono::seconds(1),
+          std::bind(&LightningRRT::timer_cb, this));
 };
 
 int main(int argc, char *argv[])
