@@ -27,6 +27,11 @@ private:
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "'%f'", msg->pose.position.x);
   }
 
+  void goal_cb(PoseStamped::SharedPtr msg)
+  {
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "'%f'", msg->pose.position.x);
+  }
+
   void map_cb(OccupancyGrid::SharedPtr msg)
   {
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Map received: '%d' x '%d'",
@@ -48,6 +53,12 @@ private:
           "start",
           10,
           std::bind(&LightningRRT::start_cb, this, _1));
+
+  rclcpp::Subscription<PoseStamped>::SharedPtr goal_sub_ =
+      create_subscription<PoseStamped>(
+          "goal",
+          10,
+          std::bind(&LightningRRT::goal_cb, this, _1));
 
   rclcpp::Subscription<OccupancyGrid>::SharedPtr map_sub_ =
       create_subscription<OccupancyGrid>(
