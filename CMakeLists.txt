@@ -28,6 +28,7 @@ target_link_libraries(lightning_rrt PUBLIC rclcpp::rclcpp ${nav_msgs_TARGETS})
 target_link_libraries(lightning_rrt PUBLIC rclcpp::rclcpp ${visualization_msgs_TARGETS})
 
 target_link_libraries(example_map PUBLIC rclcpp::rclcpp ${nav_msgs_TARGETS})
+target_link_libraries(example_map PUBLIC rclcpp::rclcpp ${geometry_msgs_TARGETS})
 
 install(TARGETS
   lightning_rrt

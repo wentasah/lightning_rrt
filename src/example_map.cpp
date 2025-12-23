@@ -1,8 +1,10 @@
 #include "rclcpp/rclcpp.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
+
+using geometry_msgs::msg::PoseStamped;
 
 using nav_msgs::msg::OccupancyGrid;
-using std::placeholders::_1;
 
 class LightningRRT : public rclcpp::Node
 {
@@ -28,10 +30,28 @@ public:
   }
 
 private:
-  void publish_map()
+  void timer_cb()
   {
+    // Publish the map
     map.header.stamp = this->now();
     map_pub_->publish(map);
+
+    // Publish start and goal poses
+    PoseStamped start;
+    start.header.frame_id = "map";
+    start.header.stamp = this->now();
+    start.pose.position.x = -4.0;
+    start.pose.position.y = -4.0;
+    start.pose.orientation.w = 1.0;
+    start_pub_->publish(start);
+
+    PoseStamped goal;
+    goal.header.frame_id = "map";
+    goal.header.stamp = this->now();
+    goal.pose.position.x = 4.0;
+    goal.pose.position.y = 4.0;
+    goal.pose.orientation.w = 1.0;
+    goal_pub_->publish(goal);
   }
 
   OccupancyGrid map;
@@ -39,9 +59,15 @@ private:
   rclcpp::Publisher<OccupancyGrid>::SharedPtr map_pub_ =
       create_publisher<OccupancyGrid>("map", 10);
 
+  rclcpp::Publisher<PoseStamped>::SharedPtr start_pub_ =
+      create_publisher<PoseStamped>("start", 10);
+
+  rclcpp::Publisher<PoseStamped>::SharedPtr goal_pub_ =
+      create_publisher<PoseStamped>("goal", 10);
+
   rclcpp::TimerBase::SharedPtr timer_ =
       create_wall_timer(std::chrono::milliseconds(500),
-                        std::bind(&LightningRRT::publish_map, this));
+                        std::bind(&LightningRRT::timer_cb, this));
 };
 
 int main(int argc, char *argv[])
