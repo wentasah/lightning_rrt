@@ -1,13 +1,13 @@
 #include "rclcpp/rclcpp.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
-#include "visualization_msgs/msg/marker_array.hpp"
+#include "visualization_msgs/msg/marker.hpp"
 #include "lightning_rrt_interfaces/msg/rrt_request.hpp"
 
 using geometry_msgs::msg::PoseStamped;
 using lightning_rrt_interfaces::msg::RRTRequest;
 using nav_msgs::msg::OccupancyGrid;
-using visualization_msgs::msg::MarkerArray;
+using visualization_msgs::msg::Marker;
 
 class ExampleClient : public rclcpp::Node
 {
@@ -19,11 +19,8 @@ public:
     // Publish the received map
     map_publisher_->publish(msg->map);
 
-    // Create and publish visualization markers for start and goal
-    MarkerArray markers;
-
-    // Start marker
-    visualization_msgs::msg::Marker start_marker;
+    // Publish start marker
+    Marker start_marker;
     start_marker.header = msg->start.header;
     start_marker.ns = "start_goal";
     start_marker.id = 0;
@@ -37,10 +34,10 @@ public:
     start_marker.color.g = 1.0f;
     start_marker.color.b = 0.0f;
     start_marker.color.a = 1.0f;
-    markers.markers.push_back(start_marker);
+    start_marker_publisher_->publish(start_marker);
 
-    // Goal marker
-    visualization_msgs::msg::Marker goal_marker;
+    // Publish goal marker
+    Marker goal_marker;
     goal_marker.header = msg->goal.header;
     goal_marker.ns = "start_goal";
     goal_marker.id = 1;
@@ -54,9 +51,7 @@ public:
     goal_marker.color.g = 0.0f;
     goal_marker.color.b = 0.0f;
     goal_marker.color.a = 1.0f;
-    markers.markers.push_back(goal_marker);
-
-    marker_publisher_->publish(markers);
+    goal_marker_publisher_->publish(goal_marker);
   }
 
 private:
@@ -66,8 +61,11 @@ private:
           10,
           std::bind(&ExampleClient::sub_cb, this, std::placeholders::_1));
 
-  rclcpp::Publisher<MarkerArray>::SharedPtr marker_publisher_ =
-      create_publisher<MarkerArray>("rrt_markers", 10);
+  rclcpp::Publisher<Marker>::SharedPtr start_marker_publisher_ =
+      create_publisher<Marker>("rrt_start_marker", 10);
+
+  rclcpp::Publisher<Marker>::SharedPtr goal_marker_publisher_ =
+      create_publisher<Marker>("rrt_goal_marker", 10);
 
   rclcpp::Publisher<OccupancyGrid>::SharedPtr map_publisher_ =
       create_publisher<OccupancyGrid>("rrt_map", 10);
