@@ -83,7 +83,7 @@ private:
       float new_y = nodes.back()->y;
 
       // Check if a straight line to goal is possible
-      if (!check_straight_line_collision(new_x, new_y, x_goal, y_goal, map))
+      if (!check_collision(new_x, new_y, x_goal, y_goal, map))
       {
         path_found = true;
         RCLCPP_INFO(this->get_logger(), "Path found!");
@@ -111,9 +111,7 @@ private:
       new_y = nearest_node->y + step_size * std::sin(theta);
 
       // Check for collision
-      int int_y = static_cast<int>(new_y);
-      int int_x = static_cast<int>(new_x);
-      if (map.data[int_y * map.info.width + int_x] == 0) // Free space
+      if (!check_collision(nearest_node->x, nearest_node->y, new_x, new_y, map))
       {
         nodes.push_back(std::make_shared<RRTNode>(new_x, new_y, nearest_node));
       }
@@ -159,22 +157,48 @@ private:
     return x >= 0 && x < bounds_x && y >= 0 && y < bounds_y;
   }
 
-  bool check_straight_line_collision(float x1, float y1,
-                                     float x2, float y2,
-                                     const OccupancyGrid &map)
+  bool check_collision(float x1, float y1, float x2, float y2,
+                       const OccupancyGrid &map)
   {
-    int steps = static_cast<int>(std::hypot(x2 - x1, y2 - y1));
+    const float resolution = map.info.resolution;
+    const float origin_x = map.info.origin.position.x;
+    const float origin_y = map.info.origin.position.y;
+
+    float dx = x2 - x1;
+    float dy = y2 - y1;
+    float distance = std::hypot(dx, dy);
+
+    int steps = static_cast<int>(distance / resolution);
+    steps = std::max(steps, 1); // ensure at least one check
+
     for (int i = 0; i <= steps; ++i)
     {
       float t = static_cast<float>(i) / static_cast<float>(steps);
-      int x = static_cast<int>(x1 + t * (x2 - x1));
-      int y = static_cast<int>(y1 + t * (y2 - y1));
-      if (map.data[y * map.info.width + x] != 0) // Not free space
+
+      float world_x = x1 + t * dx;
+      float world_y = y1 + t * dy;
+
+      int grid_x = static_cast<int>((world_x - origin_x) / resolution);
+      int grid_y = static_cast<int>((world_y - origin_y) / resolution);
+
+      // Grid bounds check
+      if (grid_x < 0 || grid_y < 0 ||
+          grid_x >= static_cast<int>(map.info.width) ||
+          grid_y >= static_cast<int>(map.info.height))
       {
-        return true; // Collision detected
+        return true;
+      }
+
+      int index = grid_y * map.info.width + grid_x;
+      int8_t cell = map.data[index];
+
+      if (cell != 0)
+      {
+        return true;
       }
     }
-    return false; // No collision
+
+    return false; // no collision
   }
 
   float get_distance(const PoseStamped &a, const PoseStamped &b)

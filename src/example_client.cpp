@@ -19,8 +19,8 @@ public:
     // Set the goal pose
     goal.header.frame_id = "map";
     goal.header.stamp = this->now();
-    goal.pose.position.x = 5.0;
-    goal.pose.position.y = 5.0;
+    goal.pose.position.x = 9.0;
+    goal.pose.position.y = 9.0;
     goal.pose.orientation.w = 1.0;
 
     // Create an occupancy grid map
@@ -47,8 +47,8 @@ public:
     // Set the start pose
     start.header.frame_id = "map";
     start.header.stamp = this->now();
-    start.pose.position.x = 0.0;
-    start.pose.position.y = 0.0;
+    start.pose.position.x = 1.0;
+    start.pose.position.y = 1.0;
     start.pose.orientation.w = 1.0;
 
     // Generate the request message
@@ -75,7 +75,7 @@ private:
       create_publisher<RRTRequest>("rrt_request", 10);
 
   rclcpp::TimerBase::SharedPtr timer_ =
-      create_wall_timer(std::chrono::milliseconds(10),
+      create_wall_timer(std::chrono::milliseconds(50),
                         std::bind(&ExampleClient::timer_cb, this));
 };
 
