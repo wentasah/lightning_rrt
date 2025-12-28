@@ -27,20 +27,24 @@ class LightningRRT : public rclcpp::Node
 public:
   LightningRRT() : Node("lightning_rrt")
   {
-    // Initialize random number generator
-    engine = std::mt19937(rd());
+    engine = std::mt19937(rd()); // Initialize random number generator
   }
 
 private:
+  // Initialize random number generation
   std::random_device rd;
   std::mt19937 engine;
   float random_x;
   float random_y;
+
+  // Initialize vector to store pointers to RRT nodes
   std::vector<std::shared_ptr<RRTNode>> nodes;
 
+  // Publisher for the RRT path
   rclcpp::Publisher<Path>::SharedPtr path_publisher_ =
       create_publisher<Path>("rrt_path", 10);
 
+  // Subscription that runs the RRT algorithm upon receiving a request
   rclcpp::Subscription<RRTRequest>::SharedPtr rrt_service_ =
       create_subscription<RRTRequest>(
           "rrt_request",
@@ -49,33 +53,47 @@ private:
 
   void rrt_cb(RRTRequest::SharedPtr request)
   {
+    // RRT Algorithm
+    RCLCPP_INFO(this->get_logger(), "Received RRT request");
+
+    // Extract parameters from the request
     uint32_t iterations = request->iterations;
     double step_size = request->step_size;
     PoseStamped start = request->start;
     PoseStamped goal = request->goal;
     OccupancyGrid map = request->map;
 
-    RCLCPP_INFO(this->get_logger(), "Received RRT request");
-
+    // Validate start and goal positions
     float x_start = start.pose.position.x;
     float y_start = start.pose.position.y;
     float x_goal = goal.pose.position.x;
     float y_goal = goal.pose.position.y;
-    float bounds_x = static_cast<float>(map.info.width);
-    float bounds_y = static_cast<float>(map.info.height);
 
-    if (!check_bounds(x_start, y_start, bounds_x, bounds_y) ||
-        !check_bounds(x_goal, y_goal, bounds_x, bounds_y))
+    // Check if start and goal are within map bounds
+    if (!check_bounds(x_start, y_start, map) ||
+        !check_bounds(x_goal, y_goal, map))
     {
-      RCLCPP_ERROR(this->get_logger(), "Start or goal position out of bounds");
+      RCLCPP_ERROR(this->get_logger(), "Start or goal is out of bounds");
       return;
     }
 
-    // RRT Algorithm
-    nodes.clear();
-    nodes.push_back(std::make_shared<RRTNode>(static_cast<int>(x_start), static_cast<int>(y_start), nullptr));
-    bool path_found = false;
+    // Check if start or goal is on an obstacle
+    // Normally this checks between points, but here it checks the same point
+    if (check_collision(x_start, y_start, x_start, y_start, map) ||
+        check_collision(x_goal, y_goal, x_goal, y_goal, map))
+    {
+      RCLCPP_ERROR(this->get_logger(), "Start or goal is in an obstacle");
+      return;
+    }
 
+    // Clear previous nodes and initialize RRT with start node
+    bool path_found = false;
+    nodes.clear();
+    nodes.push_back(std::make_shared<RRTNode>(static_cast<int>(x_start),
+                                              static_cast<int>(y_start),
+                                              nullptr));
+
+    // RRT main loop
     for (uint32_t i = 0; i < iterations; ++i)
     {
       // Initialize new_x and new_y
@@ -106,7 +124,8 @@ private:
       }
 
       // Steer towards random point
-      float theta = std::atan2(random_y - nearest_node->y, random_x - nearest_node->x);
+      float theta = std::atan2(random_y - nearest_node->y,
+                               random_x - nearest_node->x);
       new_x = nearest_node->x + step_size * std::cos(theta);
       new_y = nearest_node->y + step_size * std::sin(theta);
 
@@ -117,6 +136,7 @@ private:
       }
     }
 
+    // Publish the resulting path if found
     Path rrt_path;
     rrt_path.header.frame_id = "map";
     if (path_found)
@@ -140,7 +160,8 @@ private:
     }
     else
     {
-      RCLCPP_WARN(this->get_logger(), "No path found within the given iterations");
+      RCLCPP_WARN(this->get_logger(),
+                  "No path found within %d iterations", iterations);
     }
   }
 
@@ -152,32 +173,36 @@ private:
     random_y = static_cast<float>(dist_y(engine));
   }
 
-  bool check_bounds(float x, float y, float bounds_x, float bounds_y)
+  bool check_bounds(float x, float y, const OccupancyGrid &map)
   {
-    return x >= 0 && x < bounds_x && y >= 0 && y < bounds_y;
+    // Check if (x, y) is within map bounds
+    float origin_x = map.info.origin.position.x;
+    float origin_y = map.info.origin.position.y;
+    float bounds_x = static_cast<float>(map.info.width);
+    float bounds_y = static_cast<float>(map.info.height);
+    return (x > origin_x && x < origin_x + bounds_x &&
+            y > origin_y && y < origin_y + bounds_y);
   }
 
   bool check_collision(float x1, float y1, float x2, float y2,
                        const OccupancyGrid &map)
   {
-    const float resolution = map.info.resolution;
-    const float origin_x = map.info.origin.position.x;
-    const float origin_y = map.info.origin.position.y;
-
+    // Check for collision between two points
     float dx = x2 - x1;
     float dy = y2 - y1;
     float distance = std::hypot(dx, dy);
-
+    const float resolution = map.info.resolution;
     int steps = static_cast<int>(distance / resolution);
-    steps = std::max(steps, 1); // ensure at least one check
+    steps = std::max(steps, 1); // Ensure at least one check
 
     for (int i = 0; i <= steps; ++i)
     {
+      // Interpolate points along the line from (x1, y1) to (x2, y2)
       float t = static_cast<float>(i) / static_cast<float>(steps);
-
       float world_x = x1 + t * dx;
       float world_y = y1 + t * dy;
-
+      float origin_x = map.info.origin.position.x;
+      float origin_y = map.info.origin.position.y;
       int grid_x = static_cast<int>((world_x - origin_x) / resolution);
       int grid_y = static_cast<int>((world_y - origin_y) / resolution);
 
@@ -189,16 +214,17 @@ private:
         return true;
       }
 
+      // Check occupancy grid cell value
       int index = grid_y * map.info.width + grid_x;
       int8_t cell = map.data[index];
 
       if (cell != 0)
       {
-        return true;
+        return true; // Collision detected
       }
     }
 
-    return false; // no collision
+    return false; // No collision detected
   }
 
   float get_distance(const PoseStamped &a, const PoseStamped &b)

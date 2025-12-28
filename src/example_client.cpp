@@ -32,10 +32,17 @@ public:
     map.info.origin.position.y = 0.0;
     map.data.resize(map.info.width * map.info.height, 0);
 
-    // Add obstacles to the map
-    for (int y = 40; y < 60; ++y)
+    // Add "L" obstacle to the map
+    for (int y = 20; y < 40; ++y)
     {
       for (int x = 20; x < 80; ++x)
+      {
+        map.data[y * map.info.width + x] = 100; // Occupied
+      }
+    }
+    for (int y = 40; y < 60; ++y)
+    {
+      for (int x = 60; x < 80; ++x)
       {
         map.data[y * map.info.width + x] = 100; // Occupied
       }
