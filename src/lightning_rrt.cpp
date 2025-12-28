@@ -34,7 +34,12 @@ private:
   std::mt19937 engine;
   int random_x;
   int random_y;
+  std::vector<RRTNode> nodes;
+
   Path rrt_path;
+
+  rclcpp::Publisher<Path>::SharedPtr path_publisher_ =
+      create_publisher<Path>("rrt_path", 10);
 
   rclcpp::Subscription<RRTRequest>::SharedPtr rrt_service_ =
       create_subscription<RRTRequest>(
