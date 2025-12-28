@@ -30,3 +30,6 @@ ros2 run rviz2 rviz2
 ```
 
 Path, map, and start/goal markers can be visualized and saved to a config through the rviz2 UI.
+
+## Roadmap
+Adding an example rviz2 config, launch file, and tests
