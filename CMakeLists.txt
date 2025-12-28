@@ -19,7 +19,7 @@ find_package(visualization_msgs REQUIRED)
 find_package(lightning_rrt_interfaces REQUIRED)
 
 add_executable(lightning_rrt src/lightning_rrt.cpp)
-add_executable(example_client src/example_client.cpp)
+add_executable(example_map src/example_map.cpp)
 add_executable(visualize src/visualize.cpp)
 
 target_link_libraries(
@@ -29,7 +29,7 @@ target_link_libraries(
   ${lightning_rrt_interfaces_TARGETS})
 
 target_link_libraries(
-  example_client PUBLIC rclcpp::rclcpp
+  example_map PUBLIC rclcpp::rclcpp
   ${geometry_msgs_TARGETS}
   ${nav_msgs_TARGETS}
   ${lightning_rrt_interfaces_TARGETS})
@@ -42,7 +42,7 @@ target_link_libraries(
 
 install(TARGETS
   lightning_rrt
-  example_client
+  example_map
   visualize
   DESTINATION lib/${PROJECT_NAME})
 

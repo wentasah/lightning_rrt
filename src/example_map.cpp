@@ -7,10 +7,10 @@ using geometry_msgs::msg::PoseStamped;
 using lightning_rrt_interfaces::msg::RRTRequest;
 using nav_msgs::msg::OccupancyGrid;
 
-class ExampleClient : public rclcpp::Node
+class ExampleMap : public rclcpp::Node
 {
 public:
-  ExampleClient() : Node("example_client")
+  ExampleMap() : Node("example_map")
   {
     // Set the max iterations and step size
     iterations = 10000;
@@ -83,13 +83,13 @@ private:
 
   rclcpp::TimerBase::SharedPtr timer_ =
       create_wall_timer(std::chrono::milliseconds(50),
-                        std::bind(&ExampleClient::timer_cb, this));
+                        std::bind(&ExampleMap::timer_cb, this));
 };
 
 int main(int argc, char *argv[])
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<ExampleClient>());
+  rclcpp::spin(std::make_shared<ExampleMap>());
   rclcpp::shutdown();
   return 0;
 }
