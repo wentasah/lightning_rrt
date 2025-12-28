@@ -1,16 +1,11 @@
 #include "rclcpp/rclcpp.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
-#include "nav_msgs/msg/path.hpp"
-#include "std_msgs/msg/header.hpp"
-#include "std_msgs/msg/int64.hpp"
-#include "std_msgs/msg/float64.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "lightning_rrt_interfaces/msg/rrt_request.hpp"
 
 using geometry_msgs::msg::PoseStamped;
 using lightning_rrt_interfaces::msg::RRTRequest;
 using nav_msgs::msg::OccupancyGrid;
-using nav_msgs::msg::Path;
 
 class ExampleClient : public rclcpp::Node
 {
@@ -18,7 +13,7 @@ public:
     ExampleClient() : Node("example_client")
     {
         // Set the max iterations and step size
-        iterations = 1000;
+        iterations = 10000;
         step_size = 0.5;
 
         // Set the goal pose
@@ -77,10 +72,10 @@ private:
     RRTRequest message;
 
     rclcpp::Publisher<RRTRequest>::SharedPtr request_publisher_ =
-        this->create_publisher<RRTRequest>("rrt_request", 10);
+        create_publisher<RRTRequest>("rrt_request", 10);
 
     rclcpp::TimerBase::SharedPtr timer_ =
-        create_wall_timer(std::chrono::seconds(5),
+        create_wall_timer(std::chrono::milliseconds(10),
                           std::bind(&ExampleClient::timer_cb, this));
 };
 
