@@ -1,4 +1,5 @@
 #include <memory>
+#include <random>
 #include <vector>
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
@@ -22,13 +23,18 @@ struct RRTNode
 class LightningRRT : public rclcpp::Node
 {
 public:
-  LightningRRT() : Node("lightning_rrt") {}
+  LightningRRT() : Node("lightning_rrt")
+  {
+    // Initialize random number generator
+    engine = std::mt19937(rd());
+  }
 
 private:
-  RRTNode start_node;
-  RRTNode goal_node;
+  std::random_device rd;
+  std::mt19937 engine;
+  int random_x;
+  int random_y;
   Path rrt_path;
-  OccupancyGrid map;
 
   rclcpp::Subscription<RRTRequest>::SharedPtr rrt_service_ =
       create_subscription<RRTRequest>(
@@ -38,27 +44,39 @@ private:
 
   void rrt_cb(RRTRequest::SharedPtr request)
   {
-    int iterations = request->iterations;
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"),
-                "Iterations: %d", iterations);
+    uint32_t iterations = request->iterations;
+    double step_size = request->step_size;
+    PoseStamped start = request->start;
+    PoseStamped goal = request->goal;
+    OccupancyGrid map = request->map;
 
-    float step_size = request->step_size;
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"),
-                "Step size: %f", step_size);
+    RCLCPP_INFO(this->get_logger(), "Received RRT request");
 
-    start_node.x = request->start.pose.position.x;
-    start_node.y = request->start.pose.position.y;
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"),
-                "Start: (%d, %d)", start_node.x, start_node.y);
+    float x_start = start.pose.position.x;
+    float y_start = start.pose.position.y;
+    float x_goal = goal.pose.position.x;
+    float y_goal = goal.pose.position.y;
+    float bounds_x = static_cast<float>(map.info.width);
+    float bounds_y = static_cast<float>(map.info.height);
 
-    goal_node.x = request->goal.pose.position.x;
-    goal_node.y = request->goal.pose.position.y;
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"),
-                "Goal: (%d, %d)", goal_node.x, goal_node.y);
+    if (!check_bounds(x_start, y_start, bounds_x, bounds_y) ||
+        !check_bounds(x_goal, y_goal, bounds_x, bounds_y))
+    {
+      RCLCPP_ERROR(this->get_logger(), "Start or goal position out of bounds");
+      return;
+    }
 
-    map.data = request->map.data;
+    std::uniform_int_distribution<int> x_distrib(0, map.info.width - 1);
+    std::uniform_int_distribution<int> y_distrib(0, map.info.height - 1);
+    random_x = x_distrib(engine);
+    random_y = y_distrib(engine);
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"),
-                "Map received with size: %zu", map.data.size());
+                "Random point: (%d, %d)", random_x, random_y);
+  }
+
+  bool check_bounds(float x, float y, float bounds_x, float bounds_y)
+  {
+    return x >= 0 && x < bounds_x && y >= 0 && y < bounds_y;
   }
 
   float get_distance(const PoseStamped &a, const PoseStamped &b)

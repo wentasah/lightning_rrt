@@ -24,8 +24,8 @@ public:
         // Set the goal pose
         goal.header.frame_id = "map";
         goal.header.stamp = this->now();
-        goal.pose.position.x = 4.0;
-        goal.pose.position.y = 4.0;
+        goal.pose.position.x = 5.0;
+        goal.pose.position.y = 5.0;
         goal.pose.orientation.w = 1.0;
 
         // Create an occupancy grid map
@@ -33,8 +33,8 @@ public:
         map.info.resolution = 0.1;
         map.info.width = 100;
         map.info.height = 100;
-        map.info.origin.position.x = -5.0;
-        map.info.origin.position.y = -5.0;
+        map.info.origin.position.x = 0.0;
+        map.info.origin.position.y = 0.0;
         map.data.resize(map.info.width * map.info.height, 0);
 
         // Add obstacles to the map
@@ -52,8 +52,8 @@ public:
         // Set the start pose
         start.header.frame_id = "map";
         start.header.stamp = this->now();
-        start.pose.position.x = -4.0;
-        start.pose.position.y = -4.0;
+        start.pose.position.x = 0.0;
+        start.pose.position.y = 0.0;
         start.pose.orientation.w = 1.0;
 
         // Generate the request message
@@ -73,13 +73,14 @@ private:
     PoseStamped start;
     PoseStamped goal;
     OccupancyGrid map;
+
     RRTRequest message;
 
     rclcpp::Publisher<RRTRequest>::SharedPtr request_publisher_ =
         this->create_publisher<RRTRequest>("rrt_request", 10);
 
     rclcpp::TimerBase::SharedPtr timer_ =
-        create_wall_timer(std::chrono::milliseconds(500),
+        create_wall_timer(std::chrono::seconds(5),
                           std::bind(&ExampleClient::timer_cb, this));
 };
 
