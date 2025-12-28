@@ -20,25 +20,30 @@ find_package(lightning_rrt_interfaces REQUIRED)
 
 add_executable(lightning_rrt src/lightning_rrt.cpp)
 add_executable(example_client src/example_client.cpp)
+add_executable(visualize src/visualize.cpp)
 
 target_link_libraries(
   lightning_rrt PUBLIC rclcpp::rclcpp 
-  ${std_srvs_TARGETS}
   ${geometry_msgs_TARGETS}
   ${nav_msgs_TARGETS}
   ${lightning_rrt_interfaces_TARGETS})
 
 target_link_libraries(
-  example_client PUBLIC rclcpp::rclcpp 
-  ${std_srvs_TARGETS}
-  ${std_msgs_TARGETS}
+  example_client PUBLIC rclcpp::rclcpp
   ${geometry_msgs_TARGETS}
+  ${nav_msgs_TARGETS}
+  ${lightning_rrt_interfaces_TARGETS})
+
+target_link_libraries(
+  visualize PUBLIC rclcpp::rclcpp
+  ${visualization_msgs_TARGETS}
   ${nav_msgs_TARGETS}
   ${lightning_rrt_interfaces_TARGETS})
 
 install(TARGETS
   lightning_rrt
   example_client
+  visualize
   DESTINATION lib/${PROJECT_NAME})
 
 ament_package()
