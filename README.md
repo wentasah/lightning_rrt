@@ -9,7 +9,7 @@ sudo apt install ros-jazzy-lightning-rrt ros-jazzy-lightning-rrt-interfaces
 ```
 
 ## Usage
-See [example.cpp](https://github.com/david-dorf/lightning_rrt/blob/main/src/example_map.cpp) for sending an RRT request. Running the example is as follows:
+See [example_map.cpp](https://github.com/david-dorf/lightning_rrt/blob/main/src/example_map.cpp) for sending an RRT request. Running the example is as follows:
 
 Terminal 1:
 ```bash
