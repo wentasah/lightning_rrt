@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <node pkg="lightning_rrt" exec="lightning_rrt"/>
+  <node pkg="lightning_rrt" exec="visualize_rrt"/>
+  <node pkg="lightning_rrt" exec="example_map"/>
+  <let 
+    name="rviz_config_path" 
+    value="$(find-pkg-share lightning_rrt)/rviz/config.rviz"
+  />
+  <node
+    pkg="rviz2"
+    exec="rviz2"
+    output="screen"
+    args="-d $(var rviz_config_path)"
+  />
+</launch>
