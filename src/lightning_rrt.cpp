@@ -31,43 +31,7 @@ public:
     engine = std::mt19937(rd()); // Initialize random number generator
   }
 
-private:
-  // Initialize random number generation
-  std::random_device rd;
-  std::mt19937 engine;
-  float random_x;
-  float random_y;
-
-  // Publisher for the RRT path
-  rclcpp::Publisher<Path>::SharedPtr path_publisher_ =
-      create_publisher<Path>("rrt_path", 10);
-
-  // Subscription that runs the RRT algorithm upon receiving a request
-  rclcpp::Subscription<RRTRequest>::SharedPtr rrt_subscriber_ =
-      create_subscription<RRTRequest>(
-          "rrt_request",
-          10,
-          std::bind(&LightningRRT::sub_cb, this, std::placeholders::_1));
-
-  void sub_cb(RRTRequest::SharedPtr request)
-  {
-    RCLCPP_INFO(get_logger(), "Received RRT request");
-
-    // Extract parameters from the request
-    const float x_start = request->start.x;
-    const float y_start = request->start.y;
-    const float x_goal = request->goal.x;
-    const float y_goal = request->goal.y;
-    const OccupancyGrid map = request->map;
-    const uint32_t max_iterations = request->iterations;
-    const double step_size = request->step_size;
-
-    // Run RRT to get the path and publish it
-    Path rrt_path = get_rrt_path(x_start, y_start, x_goal, y_goal, map,
-                                 max_iterations, step_size);
-    path_publisher_->publish(rrt_path);
-  }
-
+protected:
   Path get_rrt_path(float x_start, float y_start, float x_goal, float y_goal,
                     const OccupancyGrid &map, uint32_t max_iterations,
                     double step_size)
@@ -169,6 +133,43 @@ private:
       RCLCPP_WARN(get_logger(), "Path not found within max iterations.");
       return rrt_path; // Return empty path if not found
     }
+  }
+
+private:
+  // Initialize random number generation
+  std::random_device rd;
+  std::mt19937 engine;
+  float random_x;
+  float random_y;
+
+  // Publisher for the RRT path
+  rclcpp::Publisher<Path>::SharedPtr path_publisher_ =
+      create_publisher<Path>("rrt_path", 10);
+
+  // Subscription that runs the RRT algorithm upon receiving a request
+  rclcpp::Subscription<RRTRequest>::SharedPtr rrt_subscriber_ =
+      create_subscription<RRTRequest>(
+          "rrt_request",
+          10,
+          std::bind(&LightningRRT::sub_cb, this, std::placeholders::_1));
+
+  void sub_cb(RRTRequest::SharedPtr request)
+  {
+    RCLCPP_INFO(get_logger(), "Received RRT request");
+
+    // Extract parameters from the request
+    const float x_start = request->start.x;
+    const float y_start = request->start.y;
+    const float x_goal = request->goal.x;
+    const float y_goal = request->goal.y;
+    const OccupancyGrid map = request->map;
+    const uint32_t max_iterations = request->iterations;
+    const double step_size = request->step_size;
+
+    // Run RRT to get the path and publish it
+    Path rrt_path = get_rrt_path(x_start, y_start, x_goal, y_goal, map,
+                                 max_iterations, step_size);
+    path_publisher_->publish(rrt_path);
   }
 
   void update_random_point(const OccupancyGrid &map)
