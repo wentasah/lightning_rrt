@@ -2,8 +2,8 @@
 Changelog for package lightning_rrt
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.1 (2025-12-29)
+------------------
 * Update README with future work section
 * Move get_rrt_path into protected access for testing
 * Refactor rrt into a separate function for testing
