@@ -47,55 +47,67 @@ private:
       create_subscription<RRTRequest>(
           "rrt_request",
           10,
-          std::bind(&LightningRRT::rrt_cb, this, std::placeholders::_1));
+          std::bind(&LightningRRT::sub_cb, this, std::placeholders::_1));
 
-  void rrt_cb(RRTRequest::SharedPtr request)
+  void sub_cb(RRTRequest::SharedPtr request)
   {
-    // RRT Algorithm
     RCLCPP_INFO(get_logger(), "Received RRT request");
 
     // Extract parameters from the request
-    const uint32_t iterations = request->iterations;
-    const double step_size = request->step_size;
-    const OccupancyGrid map = request->map;
     const float x_start = request->start.x;
     const float y_start = request->start.y;
     const float x_goal = request->goal.x;
     const float y_goal = request->goal.y;
+    const OccupancyGrid map = request->map;
+    const uint32_t max_iterations = request->iterations;
+    const double step_size = request->step_size;
+
+    // Run RRT to get the path and publish it
+    Path rrt_path = get_rrt_path(x_start, y_start, x_goal, y_goal, map,
+                                 max_iterations, step_size);
+    path_publisher_->publish(rrt_path);
+  }
+
+  Path get_rrt_path(float x_start, float y_start, float x_goal, float y_goal,
+                    const OccupancyGrid &map, uint32_t max_iterations,
+                    double step_size)
+  {
+    // Initialize empty path that will be populated if found
+    bool path_found = false;
+    Path rrt_path;
+    rrt_path.header.frame_id = "map";
 
     // Check if start and goal are within map bounds
     if (!check_bounds(x_start, y_start, map) ||
         !check_bounds(x_goal, y_goal, map))
     {
       RCLCPP_ERROR(get_logger(), "Start or goal is out of bounds");
-      return;
+      return rrt_path; // Return empty path
     }
 
-    // Check if start or goal is on an obstacle
-    // Normally this checks between points, but here it checks the same point
+    // Check if start or goal itself is on an obstacle
     if (check_collision(x_start, y_start, x_start, y_start, map) ||
         check_collision(x_goal, y_goal, x_goal, y_goal, map))
     {
       RCLCPP_ERROR(get_logger(), "Start or goal is in an obstacle");
-      return;
+      return rrt_path; // Return empty path
     }
 
     // Initialize vector to store pointers to RRT nodes
-    bool path_found = false;
-    std::vector<std::shared_ptr<RRTNode>> nodes = {std::make_shared<RRTNode>(x_start,
-        y_start, nullptr)};
+    std::vector<std::shared_ptr<RRTNode>> nodes;
+    nodes.push_back(std::make_shared<RRTNode>(x_start, y_start, nullptr));
 
     // RRT main loop
-    for (uint32_t i = 0; i < iterations; ++i)
+    for (uint32_t i = 0; i < max_iterations; ++i)
     {
-      // Initialize new_x and new_y
       float new_x = nodes.back()->x;
       float new_y = nodes.back()->y;
 
       // Check if a straight line to goal is possible
       if (!check_collision(new_x, new_y, x_goal, y_goal, map))
       {
-        nodes.push_back(std::make_shared<RRTNode>(x_goal, y_goal, nodes.back()));
+        auto goal = std::make_shared<RRTNode>(x_goal, y_goal, nodes.back());
+        nodes.push_back(goal);
         path_found = true;
         RCLCPP_INFO(get_logger(), "Path found!");
         break;
@@ -106,7 +118,7 @@ private:
       // Find nearest node
       std::shared_ptr<RRTNode> nearest_node;
       float min_dist = std::numeric_limits<float>::max();
-      for (auto &node : nodes)
+      for (const auto &node : nodes)
       {
         float dist = std::hypot(node->x - random_x, node->y - random_y);
         if (dist < min_dist)
@@ -118,24 +130,27 @@ private:
 
       // Steer towards random point
       const float theta = std::atan2(random_y - nearest_node->y,
-                               random_x - nearest_node->x);
+                                     random_x - nearest_node->x);
       new_x = nearest_node->x + step_size * std::cos(theta);
       new_y = nearest_node->y + step_size * std::sin(theta);
 
-      // Check for collision
-      if (!check_collision(nearest_node->x, nearest_node->y, new_x, new_y, map))
+      // Check bounds and collision
+      if (!check_bounds(new_x, new_y, map) ||
+          check_collision(nearest_node->x, nearest_node->y, new_x, new_y, map))
       {
-        nodes.push_back(std::make_shared<RRTNode>(new_x, new_y, nearest_node));
+        continue; // Invalid new node
       }
+
+      // Add new node to tree
+      auto new_node = std::make_shared<RRTNode>(new_x, new_y, nearest_node);
+      nodes.push_back(new_node);
     }
 
-    // Publish the resulting path if found
     if (path_found)
     {
-      // Reconstruct path
-      Path rrt_path;
-      rrt_path.header.frame_id = "map";
       std::shared_ptr<RRTNode> current_node = nodes.back();
+
+      // Backtrack to get the path using parent pointers
       while (current_node != nullptr)
       {
         PoseStamped pose;
@@ -144,12 +159,15 @@ private:
         rrt_path.poses.push_back(pose);
         current_node = current_node->parent;
       }
+
+      // Reverse the path to get it from start to goal
       std::reverse(rrt_path.poses.begin(), rrt_path.poses.end());
-      path_publisher_->publish(rrt_path);
+      return rrt_path;
     }
     else
     {
-      RCLCPP_WARN(get_logger(), "No path found within %d iterations", iterations);
+      RCLCPP_WARN(get_logger(), "Path not found within max iterations.");
+      return rrt_path; // Return empty path if not found
     }
   }
 
