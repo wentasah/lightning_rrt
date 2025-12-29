@@ -25,3 +25,6 @@ Run with `source /opt/ros/jazzy/setup.bash | ros2 run lightning_rrt <node_name>`
 - lightning_rrt: Subscribes to rrt_request, publishes path if RRT succeeds
 - visualize_rrt: Subscribes to rrt_request, publishes map and start/goal markers
 for visualization
+
+## Future Work
+Separating the RRT planner into its own library for swapping/testing.
