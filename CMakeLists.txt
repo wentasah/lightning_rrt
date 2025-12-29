@@ -20,10 +20,10 @@ find_package(lightning_rrt_interfaces REQUIRED)
 
 add_executable(lightning_rrt src/lightning_rrt.cpp)
 add_executable(example_map src/example_map.cpp)
-add_executable(visualize src/visualize.cpp)
+add_executable(visualize_rrt src/visualize_rrt.cpp)
 
 target_link_libraries(
-  lightning_rrt PUBLIC rclcpp::rclcpp 
+  lightning_rrt PUBLIC rclcpp::rclcpp
   ${geometry_msgs_TARGETS}
   ${nav_msgs_TARGETS}
   ${lightning_rrt_interfaces_TARGETS})
@@ -35,7 +35,7 @@ target_link_libraries(
   ${lightning_rrt_interfaces_TARGETS})
 
 target_link_libraries(
-  visualize PUBLIC rclcpp::rclcpp
+  visualize_rrt PUBLIC rclcpp::rclcpp
   ${visualization_msgs_TARGETS}
   ${nav_msgs_TARGETS}
   ${lightning_rrt_interfaces_TARGETS})
@@ -43,7 +43,7 @@ target_link_libraries(
 install(TARGETS
   lightning_rrt
   example_map
-  visualize
+  visualize_rrt
   DESTINATION lib/${PROJECT_NAME})
 
 ament_package()

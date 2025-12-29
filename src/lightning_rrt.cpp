@@ -3,6 +3,7 @@
 #include <vector>
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/point.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "nav_msgs/msg/path.hpp"
 #include "lightning_rrt_interfaces/msg/rrt_request.hpp"
@@ -37,15 +38,12 @@ private:
   float random_x;
   float random_y;
 
-  // Initialize vector to store pointers to RRT nodes
-  std::vector<std::shared_ptr<RRTNode>> nodes;
-
   // Publisher for the RRT path
   rclcpp::Publisher<Path>::SharedPtr path_publisher_ =
       create_publisher<Path>("rrt_path", 10);
 
   // Subscription that runs the RRT algorithm upon receiving a request
-  rclcpp::Subscription<RRTRequest>::SharedPtr rrt_service_ =
+  rclcpp::Subscription<RRTRequest>::SharedPtr rrt_subscriber_ =
       create_subscription<RRTRequest>(
           "rrt_request",
           10,
@@ -54,26 +52,22 @@ private:
   void rrt_cb(RRTRequest::SharedPtr request)
   {
     // RRT Algorithm
-    RCLCPP_INFO(this->get_logger(), "Received RRT request");
+    RCLCPP_INFO(get_logger(), "Received RRT request");
 
     // Extract parameters from the request
-    uint32_t iterations = request->iterations;
-    double step_size = request->step_size;
-    PoseStamped start = request->start;
-    PoseStamped goal = request->goal;
-    OccupancyGrid map = request->map;
-
-    // Validate start and goal positions
-    float x_start = start.pose.position.x;
-    float y_start = start.pose.position.y;
-    float x_goal = goal.pose.position.x;
-    float y_goal = goal.pose.position.y;
+    const uint32_t iterations = request->iterations;
+    const double step_size = request->step_size;
+    const OccupancyGrid map = request->map;
+    const float x_start = request->start.x;
+    const float y_start = request->start.y;
+    const float x_goal = request->goal.x;
+    const float y_goal = request->goal.y;
 
     // Check if start and goal are within map bounds
     if (!check_bounds(x_start, y_start, map) ||
         !check_bounds(x_goal, y_goal, map))
     {
-      RCLCPP_ERROR(this->get_logger(), "Start or goal is out of bounds");
+      RCLCPP_ERROR(get_logger(), "Start or goal is out of bounds");
       return;
     }
 
@@ -82,16 +76,14 @@ private:
     if (check_collision(x_start, y_start, x_start, y_start, map) ||
         check_collision(x_goal, y_goal, x_goal, y_goal, map))
     {
-      RCLCPP_ERROR(this->get_logger(), "Start or goal is in an obstacle");
+      RCLCPP_ERROR(get_logger(), "Start or goal is in an obstacle");
       return;
     }
 
-    // Clear previous nodes and initialize RRT with start node
+    // Initialize vector to store pointers to RRT nodes
     bool path_found = false;
-    nodes.clear();
-    nodes.push_back(std::make_shared<RRTNode>(static_cast<int>(x_start),
-                                              static_cast<int>(y_start),
-                                              nullptr));
+    std::vector<std::shared_ptr<RRTNode>> nodes = {std::make_shared<RRTNode>(x_start,
+        y_start, nullptr)};
 
     // RRT main loop
     for (uint32_t i = 0; i < iterations; ++i)
@@ -103,12 +95,13 @@ private:
       // Check if a straight line to goal is possible
       if (!check_collision(new_x, new_y, x_goal, y_goal, map))
       {
+        nodes.push_back(std::make_shared<RRTNode>(x_goal, y_goal, nodes.back()));
         path_found = true;
-        RCLCPP_INFO(this->get_logger(), "Path found!");
+        RCLCPP_INFO(get_logger(), "Path found!");
         break;
       }
 
-      generate_random_point(map);
+      update_random_point(map);
 
       // Find nearest node
       std::shared_ptr<RRTNode> nearest_node;
@@ -124,7 +117,7 @@ private:
       }
 
       // Steer towards random point
-      float theta = std::atan2(random_y - nearest_node->y,
+      const float theta = std::atan2(random_y - nearest_node->y,
                                random_x - nearest_node->x);
       new_x = nearest_node->x + step_size * std::cos(theta);
       new_y = nearest_node->y + step_size * std::sin(theta);
@@ -137,21 +130,17 @@ private:
     }
 
     // Publish the resulting path if found
-    Path rrt_path;
-    rrt_path.header.frame_id = "map";
     if (path_found)
     {
-      // Add goal node
-      nodes.push_back(std::make_shared<RRTNode>(x_goal, y_goal, nodes.back()));
-
       // Reconstruct path
-      rrt_path.poses.clear();
+      Path rrt_path;
+      rrt_path.header.frame_id = "map";
       std::shared_ptr<RRTNode> current_node = nodes.back();
       while (current_node != nullptr)
       {
         PoseStamped pose;
-        pose.pose.position.x = static_cast<double>(current_node->x);
-        pose.pose.position.y = static_cast<double>(current_node->y);
+        pose.pose.position.x = current_node->x;
+        pose.pose.position.y = current_node->y;
         rrt_path.poses.push_back(pose);
         current_node = current_node->parent;
       }
@@ -160,12 +149,11 @@ private:
     }
     else
     {
-      RCLCPP_WARN(this->get_logger(),
-                  "No path found within %d iterations", iterations);
+      RCLCPP_WARN(get_logger(), "No path found within %d iterations", iterations);
     }
   }
 
-  void generate_random_point(const OccupancyGrid &map)
+  void update_random_point(const OccupancyGrid &map)
   {
     std::uniform_int_distribution<int> dist_x(0, map.info.width - 1);
     std::uniform_int_distribution<int> dist_y(0, map.info.height - 1);
@@ -176,10 +164,10 @@ private:
   bool check_bounds(float x, float y, const OccupancyGrid &map)
   {
     // Check if (x, y) is within map bounds
-    float origin_x = map.info.origin.position.x;
-    float origin_y = map.info.origin.position.y;
-    float bounds_x = static_cast<float>(map.info.width);
-    float bounds_y = static_cast<float>(map.info.height);
+    const float origin_x = map.info.origin.position.x;
+    const float origin_y = map.info.origin.position.y;
+    const float bounds_x = static_cast<float>(map.info.width);
+    const float bounds_y = static_cast<float>(map.info.height);
     return (x > origin_x && x < origin_x + bounds_x &&
             y > origin_y && y < origin_y + bounds_y);
   }
@@ -188,9 +176,9 @@ private:
                        const OccupancyGrid &map)
   {
     // Check for collision between two points
-    float dx = x2 - x1;
-    float dy = y2 - y1;
-    float distance = std::hypot(dx, dy);
+    const float dx = x2 - x1;
+    const float dy = y2 - y1;
+    const float distance = std::hypot(dx, dy);
     const float resolution = map.info.resolution;
     int steps = static_cast<int>(distance / resolution);
     steps = std::max(steps, 1); // Ensure at least one check
@@ -198,13 +186,13 @@ private:
     for (int i = 0; i <= steps; ++i)
     {
       // Interpolate points along the line from (x1, y1) to (x2, y2)
-      float t = static_cast<float>(i) / static_cast<float>(steps);
-      float world_x = x1 + t * dx;
-      float world_y = y1 + t * dy;
-      float origin_x = map.info.origin.position.x;
-      float origin_y = map.info.origin.position.y;
-      int grid_x = static_cast<int>((world_x - origin_x) / resolution);
-      int grid_y = static_cast<int>((world_y - origin_y) / resolution);
+      const float t = static_cast<float>(i) / static_cast<float>(steps);
+      const float world_x = x1 + t * dx;
+      const float world_y = y1 + t * dy;
+      const float origin_x = map.info.origin.position.x;
+      const float origin_y = map.info.origin.position.y;
+      const int grid_x = static_cast<int>((world_x - origin_x) / resolution);
+      const int grid_y = static_cast<int>((world_y - origin_y) / resolution);
 
       // Grid bounds check
       if (grid_x < 0 || grid_y < 0 ||
@@ -215,8 +203,8 @@ private:
       }
 
       // Check occupancy grid cell value
-      int index = grid_y * map.info.width + grid_x;
-      int8_t cell = map.data[index];
+      const int index = grid_y * map.info.width + grid_x;
+      const int8_t cell = map.data[index];
 
       if (cell != 0)
       {

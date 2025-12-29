@@ -1,9 +1,9 @@
 #include "rclcpp/rclcpp.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
-#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/point.hpp"
 #include "lightning_rrt_interfaces/msg/rrt_request.hpp"
 
-using geometry_msgs::msg::PoseStamped;
+using geometry_msgs::msg::Point;
 using lightning_rrt_interfaces::msg::RRTRequest;
 using nav_msgs::msg::OccupancyGrid;
 
@@ -15,13 +15,6 @@ public:
     // Set the max iterations and step size
     iterations = 10000;
     step_size = 0.5;
-
-    // Set the goal pose
-    goal.header.frame_id = "map";
-    goal.header.stamp = this->now();
-    goal.pose.position.x = 9.0;
-    goal.pose.position.y = 9.0;
-    goal.pose.orientation.w = 1.0;
 
     // Create an occupancy grid map
     map.header.frame_id = "map";
@@ -52,11 +45,12 @@ public:
   void timer_cb()
   {
     // Set the start pose
-    start.header.frame_id = "map";
-    start.header.stamp = this->now();
-    start.pose.position.x = 1.0;
-    start.pose.position.y = 1.0;
-    start.pose.orientation.w = 1.0;
+    start.x = 1.0;
+    start.y = 1.0;
+
+    // Set the goal pose
+    goal.x = 9.0;
+    goal.y = 9.0;
 
     // Generate the request message
     message.iterations = iterations;
@@ -72,8 +66,8 @@ public:
 private:
   int iterations;
   double step_size;
-  PoseStamped start;
-  PoseStamped goal;
+  Point start;
+  Point goal;
   OccupancyGrid map;
 
   RRTRequest message;

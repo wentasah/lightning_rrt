@@ -24,7 +24,7 @@ ros2 run lightning_rrt example_map
 Terminal 2:
 ```bash
 source /opt/ros/jazzy/setup.bash
-ros2 run lightning_rrt visualize
+ros2 run lightning_rrt visualize_rrt
 ```
 
 Terminal 3:
